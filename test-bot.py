@@ -64,27 +64,31 @@ class GameContext: #CustomContext(CallbackContext[ExtBot, dict, ChatData, dict])
         return None
 
 def get_game_context(context: ContextTypes.DEFAULT_TYPE) -> Optional[GameContext]:
-    if ("game_context" not in context.user_data):
+    if (context.user_data is None or "game_context" not in context.user_data):
         return None
     return context.user_data["game_context"]
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if (context.user_data is None):
+        context.user_data = {}
     if ("game_context" not in context.user_data):
         context.user_data["game_context"] = GameContext()
-    await update.message.reply_text("You can /visit to a location or call a number. Use /status to see how many visits and calls you have made.")
-
+    if (update.message is not None):
+        await update.message.reply_text("You can /visit to a location or call a number. Use /status to see how many visits and calls you have made.")
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     game_context = get_game_context(context)
+    if (update.message is None):
+        return
     if game_context is None:
         await update.message.reply_text("Please use /start to start a game")
         return
     await update.message.reply_text("you have done {} visits, 0 calls".format(game_context.visits))
 
-
 async def visit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     game_context = get_game_context(context)
+    if (update.message is None):
+        return
     if game_context is None:
         await update.message.reply_text("Please use /start to start a game")
         return
@@ -93,13 +97,16 @@ async def visit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     game_context = get_game_context(context)
+    if (update.message is None):
+        return
     if game_context is None:
         await update.message.reply_text("Please use /start to start a game")
         return
     if (game_context.action != 1):
         await update.message.reply_text("Please select an action.")
         return
-    message = update.message.text
+    if (update.message.text is not None):
+        message = update.message.text
     if (message == "Clear"):
         game_context.action = 0
         await update.message.reply_text("Try another action.")
@@ -124,7 +131,6 @@ def main() -> None:
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, process_message))
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-
 
 if __name__ == "__main__":
     main()
