@@ -1,4 +1,5 @@
 import logging
+import os
 
 from typing import Optional
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
@@ -12,6 +13,9 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Enable logging
 logging.basicConfig(
@@ -123,7 +127,7 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text("This location is not found, try other place!")
 
 def main() -> None:
-    application = Application.builder().token('<token>').build()
+    application = Application.builder().token(os.getenv('TOKEN')).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("status", status))
