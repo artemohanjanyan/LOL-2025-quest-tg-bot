@@ -19,7 +19,8 @@ load_dotenv()
 
 # Enable logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
 )
 # set higher logging level for httpx to avoid all GET and POST requests being logged
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -126,14 +127,21 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
     await update.message.reply_text("This location is not found, try other place!")
 
+async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    sticker = update.message.sticker
+    print(sticker.file_id)
+    file_id = 'CAACAgIAAxkBAAMNaIlFxizETyqtg3QHjCERsIm5oH0AAqYBAALxQr8F8-o48Oi8gvE2BA'
+    await context.bot.send_sticker(chat_id = update.message.chat_id, sticker=file_id)
+
 def main() -> None:
     application = Application.builder().token(os.getenv('TOKEN')).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("visit", visit))
-
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, process_message))
+    application.add_handler(MessageHandler(filters.Sticker.ALL, sticker_handler))
+
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
