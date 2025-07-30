@@ -13,6 +13,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from telegram.helpers import escape_markdown
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -128,19 +129,37 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text("This location is not found, try other place!")
 
 async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    sticker = update.message.sticker
-    print(sticker.file_id)
-    file_id = 'CAACAgIAAxkBAAMNaIlFxizETyqtg3QHjCERsIm5oH0AAqYBAALxQr8F8-o48Oi8gvE2BA'
-    await context.bot.send_sticker(chat_id = update.message.chat_id, sticker=file_id)
+    if update.message is None or update.message.sticker is None:
+        return
+    file_id = escape_markdown(update.message.sticker.file_id, version=2)
+    await update.message.reply_text(f"Sticker ID: `{file_id}`", parse_mode='MarkdownV2')
+
+async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message is None:
+        return
+    file_id = escape_markdown(update.message.photo[0].file_id, version=2)
+    await update.message.reply_text(f"Photo ID: `{file_id}`", parse_mode='MarkdownV2')
+
+async def caps_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.args is None or update.effective_chat is None:
+        return
+    text_caps = ' '.join(context.args).upper()
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text_caps)
 
 def main() -> None:
-    application = Application.builder().token(os.getenv('TOKEN')).build()
+    token = os.getenv("TOKEN")
+    if token is None:
+        print("TOKEN is not in the environment")
+        return
+    application = Application.builder().token(token).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("visit", visit))
+    application.add_handler(CommandHandler("caps", caps_command_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, process_message))
     application.add_handler(MessageHandler(filters.Sticker.ALL, sticker_handler))
+    application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
