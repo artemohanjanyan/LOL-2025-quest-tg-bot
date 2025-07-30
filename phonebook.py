@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 from enum import Enum
 
-phonebook_connection = sqlite3.connect('phonebook.db')
+phonebook_connection = sqlite3.connect('quest.db')
 
 with open('phonebook.sql') as phonebook_file:
     phonebook_schema = phonebook_file.read()

@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS users (
+  user_id INTEGER PRIMARY KEY,
+  username TEXT NULL,
+  role TEXT NOT NULL
+) STRICT;

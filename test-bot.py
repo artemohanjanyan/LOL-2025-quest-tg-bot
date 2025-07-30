@@ -21,6 +21,9 @@ from dotenv import load_dotenv
 import phonebook
 from phonebook import ReplyPart, ReplyType, Reply
 
+import users
+from users import UserRole
+
 load_dotenv()
 
 logging.basicConfig(
@@ -67,6 +70,23 @@ class AddNumberContext:
         self._adding = False
         return True
 
+async def check_captain_permission(update: Update) -> bool:
+    if (update.effective_user is None or
+        update.effective_user.id not in users.users):
+        if update.message is not None:
+            await update.message.reply_text("А ви від кого?")
+        return False
+    return True
+
+async def check_admin_permission(update: Update) -> bool:
+    if (update.effective_user is None or
+        update.effective_user.id not in users.users or
+        users.users[update.effective_user.id] != UserRole.ADMIN):
+        if update.message is not None:
+            await update.message.reply_text("А ви від кого?")
+        return False
+    return True
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if (context.user_data is None):
         context.user_data = {}
@@ -84,6 +104,8 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await update.message.reply_text(f"Photo ID: `{file_id}`", parse_mode="MarkdownV2")
 
 async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await check_captain_permission(update):
+        return
     if context.args is None or update.message is None:
         return
     number = context.args[0]
@@ -111,6 +133,8 @@ def get_add_number_context(context: ContextTypes.DEFAULT_TYPE) -> AddNumberConte
 
 async def add_number(update: Update,
                      context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await check_admin_permission(update):
+        return
     if context.args is None or update.message is None:
         return
     add_number_context = get_add_number_context(context)
@@ -132,6 +156,8 @@ async def add_number(update: Update,
         )
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await check_admin_permission(update):
+        return
     if update.message is None:
         return
     add_number_context = get_add_number_context(context)
@@ -143,6 +169,8 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                         parse_mode = "MarkdownV2")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await check_admin_permission(update):
+        return
     if update.message is None:
         return
     add_number_context = get_add_number_context(context)
@@ -155,6 +183,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def add_reply_part(update: Update,
                          context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
     if update.message is None:
         return
     add_number_context = get_add_number_context(context)
@@ -175,6 +205,18 @@ async def add_reply_part(update: Update,
         await update.message.reply_text("_Повідомлення не додано_",
                                         parse_mode = "MarkdownV2")
 
+async def read_users(update: Update,
+                     context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    users.read_users()
+
+async def read_phonebook(update: Update,
+                         context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    phonebook.read_phonebook()
+
 def main() -> None:
     token = os.getenv("TOKEN")
     if token is None:
@@ -189,6 +231,8 @@ def main() -> None:
     application.add_handler(CommandHandler("add_number", add_number))
     application.add_handler(CommandHandler("done", done))
     application.add_handler(CommandHandler("cancel", cancel))
+    application.add_handler(CommandHandler("read_users", read_users))
+    application.add_handler(CommandHandler("read_phonebook", read_phonebook))
     application.add_handler(MessageHandler(filters.TEXT | filters.PHOTO |
                                            filters.Sticker.ALL, add_reply_part))
     application.add_handler(MessageHandler(filters.Sticker.ALL, sticker_handler))
