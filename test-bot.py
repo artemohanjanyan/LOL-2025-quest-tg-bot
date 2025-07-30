@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # The [ExtBot, dict, ChatData, dict] is for type checkers like mypy
 class GameContext: #CustomContext(CallbackContext[ExtBot, dict, ChatData, dict]):
     LOCS = {"Seattle" : "Привіт ти зустрів Олексія і його дивного друга",
-            "Graz" : "Олена Василївна розповіла дивовижну історію, що її онук викопав останки динозавра",
+            "Graz" : "Олена Василіївна розповіла дивовижну історію, що її онук викопав останки динозавра",
             "Kyiv" : "Олександр Крижановський знов дав самостійну роботу",
             }
     APPS = {"Seattle" : "Seattle_friend.jpg",
@@ -124,7 +124,7 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         game_context.add_visit()
         pic = game_context.check_app(message)
         if (pic is not None):
-            await context.bot.send_document(chat_id = update.message.chat_id,document = open(pic,'rb'))
+            await context.bot.send_document(chat_id = update.message.chat_id,document = open(pic,"rb"))
         return
     await update.message.reply_text("This location is not found, try other place!")
 
@@ -132,19 +132,25 @@ async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message is None or update.message.sticker is None:
         return
     file_id = escape_markdown(update.message.sticker.file_id, version=2)
-    await update.message.reply_text(f"Sticker ID: `{file_id}`", parse_mode='MarkdownV2')
+    await update.message.reply_text(f"Sticker ID: `{file_id}`", parse_mode="MarkdownV2")
 
 async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message is None:
         return
     file_id = escape_markdown(update.message.photo[0].file_id, version=2)
-    await update.message.reply_text(f"Photo ID: `{file_id}`", parse_mode='MarkdownV2')
+    await update.message.reply_text(f"Photo ID: `{file_id}`", parse_mode="MarkdownV2")
 
-async def caps_command_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.args is None or update.effective_chat is None:
+async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if context.args is None or update.message is None:
         return
-    text_caps = ' '.join(context.args).upper()
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=text_caps)
+    number = context.args[0]
+    password = context.args[1] if 1 < len(context.args) else None
+    if number == "18824" and password is None:
+        await update.message.reply_text("""Слухайте, його вбили! Мого нареченого, мого Вольдемара! Він був такий красунчик, навіть величезна родимка під лівим оком його не псувала. А я так мріяла стати місіс Хайр! О ні, я ніяк не можу в це повірити!""")
+        await update.message.reply_photo("AgACAgIAAxkBAAM_aIokSPLIXskc7hZRtHQgzdZPnnoAAjYdMhtOuVFIM2ToiobwfqUBAAMCAANzAAM2BA")
+    else:
+        await update.message.reply_text("_Ніхто не відповідає\\.\\.\\._",
+                                        parse_mode="MarkdownV2")
 
 def main() -> None:
     token = os.getenv("TOKEN")
@@ -156,7 +162,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("status", status))
     application.add_handler(CommandHandler("visit", visit))
-    application.add_handler(CommandHandler("caps", caps_command_handler))
+    application.add_handler(CommandHandler("call", call))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, process_message))
     application.add_handler(MessageHandler(filters.Sticker.ALL, sticker_handler))
     application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
