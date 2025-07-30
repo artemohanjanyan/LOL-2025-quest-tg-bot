@@ -14,7 +14,7 @@ phonebook_connection.executescript(phonebook_schema)
 
 class ReplyType(Enum):
     TEXT = "text"
-    PICTURE = "picture"
+    PHOTO = "photo"
     STICKER = "sticker"
 
 @dataclass
