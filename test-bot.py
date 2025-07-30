@@ -23,6 +23,7 @@ from phonebook import ReplyPart, ReplyType, Reply
 
 import users
 from users import UserRole
+from stats import log_call
 
 load_dotenv()
 
@@ -106,10 +107,13 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_captain_permission(update):
         return
-    if context.args is None or update.message is None:
+    if (context.args is None or
+        update.message is None or
+        update.effective_user is None):
         return
     number = context.args[0]
     password = context.args[1] if 1 < len(context.args) else None
+    log_call(update.effective_user.id, update.message.date, number, password)
     if (number, password) in phonebook.phonebook.replies:
         reply = phonebook.phonebook.replies[(number, password)]
         for part in reply.parts:

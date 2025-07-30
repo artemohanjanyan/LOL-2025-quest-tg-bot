@@ -7,10 +7,8 @@ from enum import Enum
 
 users_connection = sqlite3.connect('quest.db')
 
-with open('users.sql') as phonebook_file:
-    phonebook_schema = phonebook_file.read()
-
-users_connection.executescript(phonebook_schema)
+with open('users.sql') as users_file:
+    users_connection.executescript(users_file.read())
 
 class UserRole(Enum):
     ADMIN = "admin"

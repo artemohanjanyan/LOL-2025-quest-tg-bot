@@ -8,9 +8,7 @@ from enum import Enum
 phonebook_connection = sqlite3.connect('quest.db')
 
 with open('phonebook.sql') as phonebook_file:
-    phonebook_schema = phonebook_file.read()
-
-phonebook_connection.executescript(phonebook_schema)
+    phonebook_connection.executescript(phonebook_file.read())
 
 class ReplyType(Enum):
     TEXT = "text"
