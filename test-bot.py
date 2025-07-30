@@ -16,6 +16,9 @@ from telegram.ext import (
 from telegram.helpers import escape_markdown
 from dotenv import load_dotenv
 
+import phonebook
+from phonebook import ReplyType
+
 load_dotenv()
 
 # Enable logging
@@ -145,9 +148,16 @@ async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     number = context.args[0]
     password = context.args[1] if 1 < len(context.args) else None
-    if number == "18824" and password is None:
-        await update.message.reply_text("""Слухайте, його вбили! Мого нареченого, мого Вольдемара! Він був такий красунчик, навіть величезна родимка під лівим оком його не псувала. А я так мріяла стати місіс Хайр! О ні, я ніяк не можу в це повірити!""")
-        await update.message.reply_photo("AgACAgIAAxkBAAM_aIokSPLIXskc7hZRtHQgzdZPnnoAAjYdMhtOuVFIM2ToiobwfqUBAAMCAANzAAM2BA")
+    if (number, password) in phonebook.phonebook.replies:
+        reply = phonebook.phonebook.replies[(number, password)]
+        for part in reply.parts:
+            match part.reply_type:
+                case ReplyType.TEXT:
+                    await update.message.reply_text(part.reply_data)
+                case ReplyType.PICTURE:
+                    await update.message.reply_photo(part.reply_data)
+                case ReplyType.STICKER:
+                    await update.message.reply_sticker(part.reply_data)
     else:
         await update.message.reply_text("_Ніхто не відповідає\\.\\.\\._",
                                         parse_mode="MarkdownV2")
