@@ -135,7 +135,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         update.effective_user is None):
         return
     call_n = stats.status(update.effective_user.id)
-    await update.message.reply_text(f"Кількість дзвінків — {call_n}\.",
+    await update.message.reply_text(f"Кількість дзвінків — {call_n}\\.",
                                     parse_mode="MarkdownV2")
 
 def get_add_number_context(context: ContextTypes.DEFAULT_TYPE) -> AddNumberContext:
