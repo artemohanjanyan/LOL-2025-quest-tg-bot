@@ -23,7 +23,7 @@ from phonebook import ReplyPart, ReplyType, Reply
 
 import users
 from users import UserRole
-from stats import log_call
+import stats
 
 load_dotenv()
 
@@ -113,7 +113,7 @@ async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     number = context.args[0]
     password = context.args[1] if 1 < len(context.args) else None
-    log_call(update.effective_user.id, update.message.date, number, password)
+    stats.log_call(update.effective_user.id, update.message.date, number, password)
     if (number, password) in phonebook.phonebook.replies:
         reply = phonebook.phonebook.replies[(number, password)]
         for part in reply.parts:
@@ -127,6 +127,16 @@ async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         await update.message.reply_text("_Ніхто не відповідає\\.\\.\\._",
                                         parse_mode="MarkdownV2")
+
+async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await check_captain_permission(update):
+        return
+    if (update.message is None or
+        update.effective_user is None):
+        return
+    call_n = stats.status(update.effective_user.id)
+    await update.message.reply_text(f"Кількість дзвінків — {call_n}\.",
+                                    parse_mode="MarkdownV2")
 
 def get_add_number_context(context: ContextTypes.DEFAULT_TYPE) -> AddNumberContext:
     if context.user_data is None:
@@ -185,6 +195,19 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("_Відміна_",
                                         parse_mode = "MarkdownV2")
 
+async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await check_admin_permission(update):
+        return
+    if update.message is None:
+        return
+    result = stats.stats()
+    await update.message.reply_text(
+        "\n".join(map(
+            lambda stat: f"{stat[1]} ({stat[2]}) — {stat[0]}",
+            result
+        ))
+    )
+
 async def add_reply_part(update: Update,
                          context: ContextTypes.DEFAULT_TYPE):
     if not await check_admin_permission(update):
@@ -231,14 +254,17 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
 
     application.add_handler(CommandHandler("call", call))
+    application.add_handler(CommandHandler("status", status))
 
     application.add_handler(CommandHandler("add_number", add_number))
     application.add_handler(CommandHandler("done", done))
     application.add_handler(CommandHandler("cancel", cancel))
+    application.add_handler(CommandHandler("leaderboard", leaderboard))
     application.add_handler(CommandHandler("read_users", read_users))
     application.add_handler(CommandHandler("read_phonebook", read_phonebook))
     application.add_handler(MessageHandler(filters.TEXT | filters.PHOTO |
                                            filters.Sticker.ALL, add_reply_part))
+
     application.add_handler(MessageHandler(filters.Sticker.ALL, sticker_handler))
     application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
 
