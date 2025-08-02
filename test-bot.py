@@ -307,6 +307,11 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                               "_Капітан не активував бота_",
                               parse_mode = "MarkdownV2"
                       )
+                    except error.Forbidden:
+                      await update.message.reply_text(
+                              "_Капітан не активував бота_",
+                              parse_mode = "MarkdownV2"
+                      )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_admin_permission(update):
