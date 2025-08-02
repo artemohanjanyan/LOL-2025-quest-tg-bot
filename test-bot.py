@@ -2,8 +2,15 @@ import logging
 import os
 from typing import List, Optional
 from textwrap import dedent
+from enum import Enum
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import (
+    Bot,
+    Message,
+    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
+    Update
+)
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -34,41 +41,58 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-class AddNumberContext:
-    def __init__(
-            self,
-            ) -> None:
-        self._adding: bool = False
+class Action(Enum):
+    ADD_NUMBER = 1
+    BROADCAST = 2
+
+class LongActionContext:
+    def __init__(self) -> None:
+        self._action: Action | None = None
         self._phone: str = ""
         self._password: str | None = None
         self._reply_parts: List[ReplyPart] = []
 
-    def start(self, phone: str, password: str | None) -> bool:
-        if self._adding:
-            return False
-        self._adding = True
+    def current_action(self) -> Action | None:
+        return self._action
+
+    def reply(self) -> Reply:
+        return Reply(self._reply_parts)
+
+    def start_add_number(self, phone: str, password: str | None) -> None:
+        assert self._action == None, "another operation is in progress"
+        self._action = Action.ADD_NUMBER
         self._phone = phone
         self._password = password
         self._reply_parts = []
-        return True
+
+    def start_broadcast(self) -> None:
+        assert self._action == None, "another operation is in progress"
+        self._action = Action.BROADCAST
+        self._reply_parts = []
 
     def add_reply_part(self, reply_part: ReplyPart) -> bool:
-        if not self._adding:
+        if self._action == None:
             return False
         self._reply_parts.append(reply_part)
         return True
 
-    def finish(self) -> bool:
-        if not self._adding:
+    def finish_add_number(self) -> bool:
+        if self._action != Action.ADD_NUMBER:
             return False
         phonebook.add_number(self._phone, self._password, Reply(self._reply_parts))
-        self._adding = False
+        self._action = None
+        return True
+
+    def finish_broadcast(self) -> bool:
+        if self._action != Action.BROADCAST:
+            return False
+        self._action = None
         return True
 
     def cancel(self) -> bool:
-        if not self._adding:
+        if self._action == None:
             return False
-        self._adding = False
+        self._action = None
         return True
 
 async def check_captain_permission(update: Update) -> bool:
@@ -92,17 +116,45 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if (context.user_data is None):
         context.user_data = {}
 
-async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.message is None or update.message.sticker is None:
-        return
-    file_id = escape_markdown(update.message.sticker.file_id, version=2)
-    await update.message.reply_text(f"Sticker ID: `{file_id}`", parse_mode="MarkdownV2")
+#async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+#    if update.message is None or update.message.sticker is None:
+#        return
+#    file_id = escape_markdown(update.message.sticker.file_id, version=2)
+#    await update.message.reply_text(f"Sticker ID: `{file_id}`", parse_mode="MarkdownV2")
+#
+#async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+#    if update.message is None:
+#        return
+#    file_id = escape_markdown(update.message.photo[0].file_id, version=2)
+#    await update.message.reply_text(f"Photo ID: `{file_id}`", parse_mode="MarkdownV2")
 
-async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.message is None:
-        return
-    file_id = escape_markdown(update.message.photo[0].file_id, version=2)
-    await update.message.reply_text(f"Photo ID: `{file_id}`", parse_mode="MarkdownV2")
+async def send_reply(message: Message, reply: Reply) -> None:
+    for part in reply.parts:
+        match part.reply_type:
+            case ReplyType.TEXT:
+                await message.reply_text(part.reply_data)
+            case ReplyType.PHOTO:
+                await message.reply_photo(part.reply_data)
+            case ReplyType.STICKER:
+                await message.reply_sticker(part.reply_data)
+            case ReplyType.VOICE:
+                await message.reply_voice(part.reply_data)
+            case ReplyType.DOCUMENT:
+                await message.reply_document(part.reply_data)
+
+async def send_message(bot: Bot, user_id: int, reply: Reply) -> None:
+    for part in reply.parts:
+        match part.reply_type:
+            case ReplyType.TEXT:
+                await bot.send_message(user_id, part.reply_data)
+            case ReplyType.PHOTO:
+                await bot.send_photo(user_id, part.reply_data)
+            case ReplyType.STICKER:
+                await bot.send_sticker(user_id, part.reply_data)
+            case ReplyType.VOICE:
+                await bot.send_voice(user_id, part.reply_data)
+            case ReplyType.DOCUMENT:
+                await bot.send_document(user_id, part.reply_data)
 
 async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_captain_permission(update):
@@ -113,20 +165,16 @@ async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     number = context.args[0]
     password = context.args[1] if 1 < len(context.args) else None
-    stats.log_call(update.effective_user.id, update.message.date, number, password)
     if (number, password) in phonebook.phonebook.replies:
-        reply = phonebook.phonebook.replies[(number, password)]
-        for part in reply.parts:
-            match part.reply_type:
-                case ReplyType.TEXT:
-                    await update.message.reply_text(part.reply_data)
-                case ReplyType.PHOTO:
-                    await update.message.reply_photo(part.reply_data)
-                case ReplyType.STICKER:
-                    await update.message.reply_sticker(part.reply_data)
+        await send_reply(update.message,
+                         phonebook.phonebook.replies[(number, password)])
     else:
         await update.message.reply_text("_Ніхто не відповідає\\.\\.\\._",
                                         parse_mode="MarkdownV2")
+    stats.log_call(update.effective_user.id,
+                   update.message.date,
+                   number,
+                   password)
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_captain_permission(update):
@@ -138,12 +186,12 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f"Кількість дзвінків — {call_n}\\.",
                                     parse_mode="MarkdownV2")
 
-def get_add_number_context(context: ContextTypes.DEFAULT_TYPE) -> AddNumberContext:
+def get_long_action_context(context: ContextTypes.DEFAULT_TYPE) -> LongActionContext:
     if context.user_data is None:
         context.user_data = {}
-    if "add_number_context" not in context.user_data:
-        context.user_data["add_number_context"] = AddNumberContext()
-    return context.user_data["add_number_context"]
+    if "long_action_context" not in context.user_data:
+        context.user_data["long_action_context"] = LongActionContext()
+    return context.user_data["long_action_context"]
 
 async def add_number(update: Update,
                      context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -151,45 +199,80 @@ async def add_number(update: Update,
         return
     if context.args is None or update.message is None:
         return
-    add_number_context = get_add_number_context(context)
+    long_action_context = get_long_action_context(context)
+    if long_action_context.current_action() != None:
+        await update.message.reply_text("_Виконується інша операція_",
+                                        parse_mode = "MarkdownV2")
+        return
     number = context.args[0]
     password = context.args[1] if 1 < len(context.args) else None
-    if not add_number_context.start(number, password):
-        await update.message.reply_text("_Номер вже додається_",
+    long_action_context.start_add_number(number, password)
+    await update.message.reply_text(
+            dedent(f"""\
+                    _Додаємо номер {number} з паролем {password}\\._
+                    _Надішліть всі повідомлення відповіді\\._
+                    _Після цього підтвердіть додавання командою_ `/done` _\\._
+                    _Для відміни використайте команду_ `/cancel` _\\._
+                    _Для видалення одразу надішліть команду_ `/done` _\\._
+                    """),
+            parse_mode = "MarkdownV2"
+    )
+
+async def broadcast(update: Update,
+                    context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await check_admin_permission(update):
+        return
+    if update.message is None:
+        return
+    long_action_context = get_long_action_context(context)
+    if long_action_context.current_action() != None:
+        await update.message.reply_text("_Виконується інша операція_",
                                         parse_mode = "MarkdownV2")
-    else:
-        await update.message.reply_text(
-                dedent(f"""\
-                        _Додаємо номер {number} з паролем {password}\\._
-                        _Надішліть всі повідомлення відповіді\\._
-                        _Після цього підтвердіть додавання командою_ `/done` _\\._
-                        _Для відміни використайте команду_ `/cancel` _\\._
-                        _Для видалення одразу надішліть команду_ `/done` _\\._
-                        """),
-                parse_mode = "MarkdownV2"
-        )
+        return
+    long_action_context.start_broadcast()
+    await update.message.reply_text(
+            dedent(f"""\
+                    _Додаємо оголошення для капітанів\\._
+                    _Надішліть всі повідомлення оголошення\\._
+                    _Після цього підтвердіть оголошення командою_ `/done` _\\._
+                    _Для відміни використайте команду_ `/cancel` _\\._
+                    """),
+            parse_mode = "MarkdownV2"
+    )
 
 async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_admin_permission(update):
         return
     if update.message is None:
         return
-    add_number_context = get_add_number_context(context)
-    if not add_number_context.finish():
-        await update.message.reply_text("_Номер не додається_",
-                                        parse_mode = "MarkdownV2")
-    else:
-        await update.message.reply_text("_Номер додано_",
-                                        parse_mode = "MarkdownV2")
+    long_action_context = get_long_action_context(context)
+    match long_action_context.current_action():
+        case None:
+            await update.message.reply_text("_Операція не виконується_",
+                                            parse_mode = "MarkdownV2")
+        case Action.ADD_NUMBER:
+            long_action_context.finish_add_number()
+            await update.message.reply_text("_Номер додано_",
+                                            parse_mode = "MarkdownV2")
+        case Action.BROADCAST:
+            for user_id, role in users.users.items():
+                if role == UserRole.CAPTAIN:
+                    await update.message.reply_text(
+                            "_Надсилаю капітану {user_id}_",
+                            parse_mode = "MarkdownV2"
+                    )
+                    await send_message(context.bot,
+                                       user_id,
+                                       long_action_context.reply())
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_admin_permission(update):
         return
     if update.message is None:
         return
-    add_number_context = get_add_number_context(context)
-    if not add_number_context.cancel():
-        await update.message.reply_text("_Номер не додається_",
+    long_action_context = get_long_action_context(context)
+    if not long_action_context.cancel():
+        await update.message.reply_text("_Операція не виконується_",
                                         parse_mode = "MarkdownV2")
     else:
         await update.message.reply_text("_Відміна_",
@@ -208,25 +291,33 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         ))
     )
 
-async def add_reply_part(update: Update,
-                         context: ContextTypes.DEFAULT_TYPE):
+async def long_action_handler(update: Update,
+                              context: ContextTypes.DEFAULT_TYPE):
     if not await check_admin_permission(update):
         return
     if update.message is None:
         return
-    add_number_context = get_add_number_context(context)
+    long_action_context = get_long_action_context(context)
     result = False
     if update.message.text is not None:
-        result = add_number_context.add_reply_part(
+        result = long_action_context.add_reply_part(
                 ReplyPart(ReplyType.TEXT, update.message.text)
         )
     elif update.message.photo is not None and len(update.message.photo) > 0:
-        result = add_number_context.add_reply_part(
+        result = long_action_context.add_reply_part(
                 ReplyPart(ReplyType.PHOTO, update.message.photo[0].file_id)
         )
     elif update.message.sticker is not None:
-        result = add_number_context.add_reply_part(
+        result = long_action_context.add_reply_part(
                 ReplyPart(ReplyType.STICKER, update.message.sticker.file_id)
+        )
+    elif update.message.voice is not None:
+        result = long_action_context.add_reply_part(
+                ReplyPart(ReplyType.VOICE, update.message.voice.file_id)
+        )
+    elif update.message.document is not None:
+        result = long_action_context.add_reply_part(
+                ReplyPart(ReplyType.DOCUMENT, update.message.document.file_id)
         )
     if not result:
         await update.message.reply_text("_Повідомлення не додано_",
@@ -256,17 +347,23 @@ def main() -> None:
     application.add_handler(CommandHandler("call", call))
     application.add_handler(CommandHandler("status", status))
 
-    application.add_handler(CommandHandler("add_number", add_number))
-    application.add_handler(CommandHandler("done", done))
-    application.add_handler(CommandHandler("cancel", cancel))
     application.add_handler(CommandHandler("leaderboard", leaderboard))
     application.add_handler(CommandHandler("read_users", read_users))
     application.add_handler(CommandHandler("read_phonebook", read_phonebook))
-    application.add_handler(MessageHandler(filters.TEXT | filters.PHOTO |
-                                           filters.Sticker.ALL, add_reply_part))
 
-    application.add_handler(MessageHandler(filters.Sticker.ALL, sticker_handler))
-    application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
+    application.add_handler(CommandHandler("add_number", add_number))
+    application.add_handler(CommandHandler("broadcast", broadcast))
+    application.add_handler(CommandHandler("done", done))
+    application.add_handler(CommandHandler("cancel", cancel))
+    application.add_handler(MessageHandler(filters.TEXT |
+                                           filters.PHOTO |
+                                           filters.VOICE |
+                                           filters.Document.ALL |
+                                           filters.Sticker.ALL,
+                                           long_action_handler))
+
+    #application.add_handler(MessageHandler(filters.Sticker.ALL, sticker_handler))
+    #application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

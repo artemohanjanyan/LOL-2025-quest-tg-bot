@@ -14,6 +14,8 @@ class ReplyType(Enum):
     TEXT = "text"
     PHOTO = "photo"
     STICKER = "sticker"
+    VOICE = "voice"
+    DOCUMENT = "document"
 
 @dataclass
 class ReplyPart:
