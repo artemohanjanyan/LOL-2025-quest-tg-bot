@@ -258,7 +258,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             for user_id, role in users.users.items():
                 if role == UserRole.CAPTAIN:
                     await update.message.reply_text(
-                            "_Надсилаю капітану {user_id}_",
+                            f"_Надсилаю капітану {user_id}_",
                             parse_mode = "MarkdownV2"
                     )
                     await send_message(context.bot,
@@ -335,6 +335,30 @@ async def read_phonebook(update: Update,
         return
     phonebook.read_phonebook()
 
+async def add_captain(update: Update,
+                      context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    if context.args is None or update.message is None:
+        return
+    user_id = context.args[0]
+    username = context.args[1]
+    users.add_captain(user_id, username)
+
+async def list_users(update: Update,
+                     context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    if context.args is None or update.message is None:
+        return
+    all_users = users.list_users()
+    await update.message.reply_text(
+        "\n".join(map(
+            lambda user: f"{user[1]} ({user[0]}) — {user[2].value}",
+            all_users
+        ))
+    )
+
 def main() -> None:
     token = os.getenv("TOKEN")
     if token is None:
@@ -350,6 +374,8 @@ def main() -> None:
     application.add_handler(CommandHandler("leaderboard", leaderboard))
     application.add_handler(CommandHandler("read_users", read_users))
     application.add_handler(CommandHandler("read_phonebook", read_phonebook))
+    application.add_handler(CommandHandler("add_captain", add_captain))
+    application.add_handler(CommandHandler("list_users", list_users))
 
     application.add_handler(CommandHandler("add_number", add_number))
     application.add_handler(CommandHandler("broadcast", broadcast))
