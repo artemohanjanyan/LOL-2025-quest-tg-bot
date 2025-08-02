@@ -136,6 +136,7 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         /broadcast — надіслати повідомлення всім користувачам
 
                         /leaderboard — таблиця лідерів
+                        /progress user_id — прогрес окремої команди
                         /add_captain user_id username — додати капітана
                         (user_id треба дізнатись за допомогою @userinfobot)
                         /list_users — показати перелік всіх користувачів
@@ -326,6 +327,23 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         ))
     )
 
+async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not await check_admin_permission(update):
+        return
+    if update.message is None or context.args is None:
+        return
+    user_id = int(context.args[0])
+    result = stats.progress(user_id)
+    if result != []:
+        await update.message.reply_text(
+            "\n".join(map(
+                lambda stat: f"{stat[0]} ({stat[1]}) — {stat[2]}",
+                result
+            ))
+        )
+    else:
+        await update.message.reply_text("Повідомлень поки немає")
+
 async def long_action_handler(update: Update,
                               context: ContextTypes.DEFAULT_TYPE):
     if not await check_admin_permission(update):
@@ -414,6 +432,7 @@ def main() -> None:
     application.add_handler(CommandHandler("status", status))
 
     application.add_handler(CommandHandler("leaderboard", leaderboard))
+    application.add_handler(CommandHandler("progress", progress))
     application.add_handler(CommandHandler("read_users", read_users))
     application.add_handler(CommandHandler("read_phonebook", read_phonebook))
     application.add_handler(CommandHandler("add_captain", add_captain))

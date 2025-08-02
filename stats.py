@@ -42,3 +42,17 @@ def stats() -> List[Tuple[int, str | int, str]]:
         ORDER BY role DESC, call_n ASC
     """)
     return cursor.fetchall()
+
+def progress(user_id: int) -> List[Tuple[str, str | None, datetime]]:
+    cursor = stats_connection.cursor()
+    cursor.execute("""
+        SELECT phone, password, MIN(call_timestamp) AS first_call
+        FROM call_log
+        WHERE user_id = ?
+        GROUP BY phone, password
+        ORDER BY first_call ASC
+    """, (user_id,))
+    return list(map(
+        lambda row: (row[0], row[1], datetime.fromisoformat(row[2])),
+        cursor.fetchall()
+    ))
