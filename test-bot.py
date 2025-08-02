@@ -9,7 +9,8 @@ from telegram import (
     Message,
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
-    Update
+    Update,
+    error,
 )
 from telegram.ext import (
     Application,
@@ -297,9 +298,15 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                             f"_Надсилаю капітану {user_id}_",
                             parse_mode = "MarkdownV2"
                     )
-                    await send_message(context.bot,
-                                       user_id,
-                                       long_action_context.reply())
+                    try:
+                      await send_message(context.bot,
+                                         user_id,
+                                         long_action_context.reply())
+                    except error.BadRequest:
+                      await update.message.reply_text(
+                              "_Капітан не активував бота_",
+                              parse_mode = "MarkdownV2"
+                      )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_admin_permission(update):
