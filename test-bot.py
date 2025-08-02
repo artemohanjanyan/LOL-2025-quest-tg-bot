@@ -107,7 +107,7 @@ async def check_captain_permission(update: Update) -> bool:
 async def check_admin_permission(update: Update) -> bool:
     if (update.effective_user is None or
         update.effective_user.id not in users.users or
-        users.users[update.effective_user.id] != UserRole.ADMIN):
+        users.users[update.effective_user.id].role != UserRole.ADMIN):
         if update.message is not None:
             await update.message.reply_text("А ви від кого?")
         return False
@@ -124,7 +124,7 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         update.effective_user.id not in users.users):
         await update.message.reply_text("А ви від кого?")
         return
-    match users.users[update.effective_user.id]:
+    match users.users[update.effective_user.id].role:
         case UserRole.ADMIN:
             await update.message.reply_text(
                 dedent("""\
@@ -134,10 +134,10 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         /status — перевірити кількість дзвінків
 
                         /add_number номер [пароль] — додати новий номер в телефонну книгу
-                        /broadcast — надіслати повідомлення всім користувачам
+                        /broadcast — надіслати повідомлення всім капітанам
 
                         /leaderboard — таблиця лідерів
-                        /progress user_id — прогрес окремої команди
+                        /progress username — прогрес окремого капітана
                         /add_captain user_id username — додати капітана
                         (user_id треба дізнатись за допомогою @userinfobot)
                         /list_users — показати перелік всіх користувачів
@@ -292,26 +292,26 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text("_Номер додано_",
                                             parse_mode = "MarkdownV2")
         case Action.BROADCAST:
-            for user_id, role in users.users.items():
-                if role == UserRole.CAPTAIN:
+            for user in users.users.values():
+                if user.role == UserRole.CAPTAIN:
                     await update.message.reply_text(
-                            f"_Надсилаю капітану {user_id}_",
+                            f"_Надсилаю капітану {user.username}_",
                             parse_mode = "MarkdownV2"
                     )
                     try:
-                      await send_message(context.bot,
-                                         user_id,
-                                         long_action_context.reply())
+                        await send_message(context.bot,
+                                           user.user_id,
+                                           long_action_context.reply())
                     except error.BadRequest:
-                      await update.message.reply_text(
-                              "_Капітан не активував бота_",
-                              parse_mode = "MarkdownV2"
-                      )
+                        await update.message.reply_text(
+                                "_Капітан не активував бота_",
+                                parse_mode = "MarkdownV2"
+                        )
                     except error.Forbidden:
-                      await update.message.reply_text(
-                              "_Капітан не активував бота_",
-                              parse_mode = "MarkdownV2"
-                      )
+                        await update.message.reply_text(
+                                "_Капітан не активував бота_",
+                                parse_mode = "MarkdownV2"
+                        )
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_admin_permission(update):
@@ -344,7 +344,8 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     if update.message is None or context.args is None:
         return
-    user_id = int(context.args[0])
+    username = context.args[0]
+    user_id = users.users_by_username[username].user_id
     result = stats.progress(user_id)
     if result != []:
         await update.message.reply_text(
@@ -414,18 +415,20 @@ async def list_users(update: Update,
                      context: ContextTypes.DEFAULT_TYPE):
     if not await check_admin_permission(update):
         return
-    if context.args is None or update.message is None:
+    if update.message is None:
         return
-    all_users = users.list_users()
     await update.message.reply_text(
         "\n".join(map(
-            lambda user: f"{user[1]} ({user[0]}) — {user[2].value}",
-            all_users
+            lambda user: f"{user.username} ({user.user_id}) — {user.role.value}",
+            users.users.values()
         ))
     )
 
 async def error_handler(update: Any | None,
                         context: ContextTypes.DEFAULT_TYPE) -> None:
+    e = context.error
+    if e != None:
+        logging.error("error_handler", exc_info=(type(e), e, e.__traceback__))
     if update != None and update.message != None:
         await update.message.reply_text("_Технічна помилка_",
                                         parse_mode = "MarkdownV2")
