@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List, Optional
+from typing import Any, List, Optional
 from textwrap import dedent
 from enum import Enum
 
@@ -115,6 +115,41 @@ async def check_admin_permission(update: Update) -> bool:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if (context.user_data is None):
         context.user_data = {}
+
+async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update.message is None:
+        return
+    if (update.effective_user is None or
+        update.effective_user.id not in users.users):
+        await update.message.reply_text("А ви від кого?")
+        return
+    match users.users[update.effective_user.id]:
+        case UserRole.ADMIN:
+            await update.message.reply_text(
+                dedent("""\
+                        /help — показати це повідомлення
+
+                        /call номер [пароль] — зробити дзвінок
+                        /status — перевірити кількість дзвінків
+
+                        /add_number номер [пароль] — додати новий номер в телефонну книгу
+                        /broadcast — надіслати повідомлення всім користувачам
+
+                        /leaderboard — таблиця лідерів
+                        /add_captain user_id username — додати капітана
+                        (user_id треба дізнатись за допомогою @userinfobot)
+                        /list_users — показати перелік всіх користувачів
+
+                        /read_users — оновити базу даних користувачів (для Артема)
+                        /read_phonebook — оновити телефонну книгу (для Артема)""")
+            )
+        case UserRole.CAPTAIN:
+            await update.message.reply_text(
+                dedent("""\
+                        /call номер [пароль] — зробити дзвінок
+                        /status — перевірити кількість дзвінків
+                        """)
+            )
 
 #async def sticker_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 #    if update.message is None or update.message.sticker is None:
@@ -359,6 +394,12 @@ async def list_users(update: Update,
         ))
     )
 
+async def error_handler(update: Any | None,
+                        context: ContextTypes.DEFAULT_TYPE) -> None:
+    if update != None and update.message != None:
+        await update.message.reply_text("_Технічна помилка_",
+                                        parse_mode = "MarkdownV2")
+
 def main() -> None:
     token = os.getenv("TOKEN")
     if token is None:
@@ -367,6 +408,7 @@ def main() -> None:
     application = Application.builder().token(token).build()
 
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", get_help))
 
     application.add_handler(CommandHandler("call", call))
     application.add_handler(CommandHandler("status", status))
@@ -390,6 +432,8 @@ def main() -> None:
 
     #application.add_handler(MessageHandler(filters.Sticker.ALL, sticker_handler))
     #application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
+
+    application.add_error_handler(error_handler)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
