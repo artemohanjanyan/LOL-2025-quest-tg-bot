@@ -140,6 +140,7 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         /progress username — прогрес окремого капітана
                         /add_captain user_id username — додати капітана
                         (user_id треба дізнатись за допомогою @userinfobot)
+                        /remove_captain user_id — видалити капітана
                         /list_users — показати перелік всіх користувачів
 
                         /read_users — оновити базу даних користувачів (для Артема)
@@ -405,11 +406,20 @@ async def add_captain(update: Update,
                       context: ContextTypes.DEFAULT_TYPE):
     if not await check_admin_permission(update):
         return
-    if context.args is None or update.message is None:
+    if context.args is None:
         return
     user_id = context.args[0]
     username = context.args[1]
     users.add_captain(user_id, username)
+
+async def remove_captain(update: Update,
+                      context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    if context.args is None:
+        return
+    user_id = context.args[0]
+    users.remove_captain(user_id)
 
 async def list_users(update: Update,
                      context: ContextTypes.DEFAULT_TYPE):
@@ -451,6 +461,7 @@ def main() -> None:
     application.add_handler(CommandHandler("read_users", read_users))
     application.add_handler(CommandHandler("read_phonebook", read_phonebook))
     application.add_handler(CommandHandler("add_captain", add_captain))
+    application.add_handler(CommandHandler("remove_captain", remove_captain))
     application.add_handler(CommandHandler("list_users", list_users))
 
     application.add_handler(CommandHandler("add_number", add_number))
