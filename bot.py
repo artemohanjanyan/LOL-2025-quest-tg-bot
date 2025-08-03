@@ -32,6 +32,7 @@ from phonebook import ReplyPart, ReplyType, Reply
 import users
 from users import UserRole
 import stats
+import pause
 
 load_dotenv()
 
@@ -136,6 +137,9 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         /add_number номер [пароль] — додати новий номер в телефонну книгу
                         /broadcast — надіслати повідомлення всім капітанам
 
+                        /pause_calls — вимкнути телефонну мережу
+                        /resume_calls — увімкнути телефонну мережу
+
                         /leaderboard — таблиця лідерів
                         /progress username — прогрес окремого капітана
                         /add_captain user_id username — додати капітана
@@ -143,8 +147,9 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         /remove_captain user_id — видалити капітана
                         /list_users — показати перелік всіх користувачів
 
-                        /read_users — оновити базу даних користувачів (для Артема)
-                        /read_phonebook — оновити телефонну книгу (для Артема)""")
+                        Команди для Артема:
+                        /read_users — оновити базу даних користувачів
+                        /read_phonebook — оновити телефонну книгу""")
             )
         case UserRole.CAPTAIN:
             await update.message.reply_text(
@@ -200,6 +205,10 @@ async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if (context.args is None or
         update.message is None or
         update.effective_user is None):
+        return
+    if pause.pause:
+        await update.message.reply_text("_Телефонна мережа не працює_",
+                                        parse_mode="MarkdownV2")
         return
     number = context.args[0]
     password = context.args[1] if 1 < len(context.args) else None
@@ -434,6 +443,34 @@ async def list_users(update: Update,
         ))
     )
 
+async def pause_calls(update: Update,
+                      context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    if update.message is None:
+        return
+    if pause.pause:
+        await update.message.reply_text("_Телефонна мережа вже вимкнена_",
+                                        parse_mode = "MarkdownV2")
+    else:
+        pause.pause_calls()
+        await update.message.reply_text("_Телефонну мережу вимкнено_",
+                                        parse_mode = "MarkdownV2")
+
+async def resume_calls(update: Update,
+                       context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    if update.message is None:
+        return
+    if not pause.pause:
+        await update.message.reply_text("_Телефонна мережа не вимкнена_",
+                                        parse_mode = "MarkdownV2")
+    else:
+        pause.resume_calls()
+        await update.message.reply_text("_Телефонну мережу увімкнено_",
+                                        parse_mode = "MarkdownV2")
+
 async def error_handler(update: Any | None,
                         context: ContextTypes.DEFAULT_TYPE) -> None:
     e = context.error
@@ -456,13 +493,16 @@ def main() -> None:
     application.add_handler(CommandHandler("call", call))
     application.add_handler(CommandHandler("status", status))
 
-    application.add_handler(CommandHandler("leaderboard", leaderboard))
-    application.add_handler(CommandHandler("progress", progress))
     application.add_handler(CommandHandler("read_users", read_users))
     application.add_handler(CommandHandler("read_phonebook", read_phonebook))
+
+    application.add_handler(CommandHandler("leaderboard", leaderboard))
+    application.add_handler(CommandHandler("progress", progress))
     application.add_handler(CommandHandler("add_captain", add_captain))
     application.add_handler(CommandHandler("remove_captain", remove_captain))
     application.add_handler(CommandHandler("list_users", list_users))
+    application.add_handler(CommandHandler("pause_calls", pause_calls))
+    application.add_handler(CommandHandler("resume_calls", resume_calls))
 
     application.add_handler(CommandHandler("add_number", add_number))
     application.add_handler(CommandHandler("broadcast", broadcast))
