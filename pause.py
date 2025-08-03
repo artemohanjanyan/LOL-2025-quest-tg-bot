@@ -7,11 +7,11 @@ pause_connection = sqlite3.connect('quest.db')
 with open('pause.sql') as pause_file:
     pause_connection.executescript(pause_file.read())
     cursor = pause_connection.cursor()
-    pause = cursor.execute("""
+    existing_pause = cursor.execute("""
         SELECT pause
         FROM pause
     """).fetchone()
-    if pause is None:
+    if existing_pause is None:
         cursor.execute("INSERT INTO pause VALUES (0)")
         pause_connection.commit()
 
