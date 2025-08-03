@@ -3,6 +3,7 @@ import os
 from typing import Any, List, Optional
 from textwrap import dedent
 from enum import Enum
+from datetime import datetime
 
 from telegram import (
     Bot,
@@ -28,7 +29,6 @@ from dotenv import load_dotenv
 
 import phonebook
 from phonebook import ReplyPart, ReplyType, Reply
-
 import users
 from users import UserRole
 import stats
@@ -357,15 +357,44 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     username = context.args[0]
     user_id = users.users_by_username[username].user_id
     result = stats.progress(user_id)
-    if result != []:
-        await update.message.reply_text(
-            "\n".join(map(
-                lambda stat: f"{stat[0]} ({stat[1]}) — {stat[2]}",
-                result
-            ))
-        )
-    else:
+    if result == []:
         await update.message.reply_text("Повідомлень поки немає")
+        return
+
+    start_of_day = min(
+        map(lambda stat: stat[2], result)
+    ).replace(hour=0, minute=0, second=0, microsecond=0)
+    def format_datetime(date: datetime) -> str:
+        total_seconds = int((date - start_of_day).total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    result_strs = list(map(
+        lambda stat: (
+            stat[0],
+            " " if stat[1] is None else stat[1],
+            "—",
+            format_datetime(stat[2])
+        ),
+        result
+    ))
+    col_widths = [
+        max(len(str(item)) for item in col)
+        for col in zip(*result_strs)
+    ]
+    rows = [
+        " ".join(f"{item:<{col_widths[i]}}" for i, item in enumerate(row))
+        for row in result_strs
+    ]
+    table_str = "\n".join(rows)
+
+    await update.message.reply_text(
+        f"Прогрес {username} починаючи від {start_of_day.strftime('%Y/%m/%d')}:\n" +
+            "```\n" + table_str + "\n```",
+        parse_mode = "MarkdownV2"
+    )
 
 async def long_action_handler(update: Update,
                               context: ContextTypes.DEFAULT_TYPE):
