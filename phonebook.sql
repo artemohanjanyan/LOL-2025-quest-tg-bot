@@ -12,3 +12,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS phone_lookup ON phonebook (
   password,
   reply_n
 );
+
+CREATE TABLE IF NOT EXISTS phone_aliases (
+  phone TEXT PRIMARY KEY,
+  alias TEXT NOT NULL
+) STRICT;

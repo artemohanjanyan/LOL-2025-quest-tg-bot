@@ -57,28 +57,56 @@ def add_number(phone: str, password: str | None, reply: Reply) -> None:
     cursor = phonebook_connection.cursor()
     execute_delete(cursor, phone, password)
     cursor.executemany("""
-            INSERT INTO phonebook
-            (phone, password, reply_n, reply_type, reply_data)
-            VALUES (?, ?, ?, ?, ?)""",
-            values
+        INSERT INTO phonebook
+        (phone, password, reply_n, reply_type, reply_data)
+        VALUES (?, ?, ?, ?, ?)""",
+        values
     )
-    phonebook_connection.commit()
-    read_phonebook()
-
-def delete_number(phone: str, password: str | None) -> None:
-    cursor = phonebook_connection.cursor()
-    execute_delete(cursor, phone, password)
     phonebook_connection.commit()
     read_phonebook()
 
 def execute_delete(cursor: Cursor, phone: str, password: str | None) -> None:
     if password is None:
         cursor.execute(
-                "DELETE FROM phonebook WHERE phone = ? and password IS NULL",
-                (phone,)
+            "DELETE FROM phonebook WHERE phone = ? and password IS NULL",
+            (phone,)
         )
     else:
         cursor.execute(
-                "DELETE FROM phonebook WHERE phone = ? and password = ?",
-                (phone, password)
+            "DELETE FROM phonebook WHERE phone = ? and password = ?",
+            (phone, password)
         )
+
+phone_aliases: Dict[str, str] = {}
+
+def read_phone_aliases() -> None:
+    global phone_aliases
+    phone_aliases = {}
+    cursor = phonebook_connection.cursor()
+    cursor.execute("""
+        SELECT phone, alias
+        FROM phone_aliases
+    """)
+    for phone, alias in cursor.fetchall():
+        phone_aliases[phone] = alias
+
+read_phone_aliases()
+
+def add_phone_alias(phone: str, alias: str) -> None:
+    cursor = phonebook_connection.cursor()
+    cursor.execute("""
+        INSERT INTO phone_aliases
+        VALUES (?, ?)""",
+        (phone, alias)
+    )
+    phonebook_connection.commit()
+    read_phone_aliases()
+
+def remove_phone_alias(phone: str) -> None:
+    cursor = phonebook_connection.cursor()
+    cursor.execute(
+        "DELETE FROM phone_aliases WHERE phone = ?",
+        (phone,)
+    )
+    phonebook_connection.commit()
+    read_phone_aliases()

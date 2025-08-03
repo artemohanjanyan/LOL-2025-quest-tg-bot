@@ -137,15 +137,21 @@ async def get_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                         /add_number номер [пароль] — додати новий номер в телефонну книгу
                         /broadcast — надіслати повідомлення всім капітанам
 
-                        /pause_calls — вимкнути телефонну мережу
-                        /resume_calls — увімкнути телефонну мережу
-
-                        /leaderboard — таблиця лідерів
-                        /progress username — прогрес окремого капітана
+                        Керування капітанами:
                         /add_captain user_id username — додати капітана
                         (user_id треба дізнатись за допомогою @userinfobot)
                         /remove_captain user_id — видалити капітана
                         /list_users — показати перелік всіх користувачів
+
+                        Пауза:
+                        /pause_calls — вимкнути телефонну мережу
+                        /resume_calls — увімкнути телефонну мережу
+
+                        Перегляд прогресу:
+                        /leaderboard — таблиця лідерів
+                        /progress username — прогрес окремого капітана
+                        /add_alias номер імʼя/назва — додати імʼя чи назву важливого номеру
+                        /remove_alias номер — видалити імʼя чи назву номеру
 
                         Команди для Артема:
                         /read_users — оновити базу даних користувачів
@@ -373,6 +379,7 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     result_strs = list(map(
         lambda stat: (
+            phonebook.phone_aliases[stat[0]] if stat[0] in phonebook.phone_aliases else " ",
             stat[0],
             " " if stat[1] is None else stat[1],
             "—",
@@ -439,6 +446,7 @@ async def read_phonebook(update: Update,
     if not await check_admin_permission(update):
         return
     phonebook.read_phonebook()
+    phonebook.read_phone_aliases()
 
 async def add_captain(update: Update,
                       context: ContextTypes.DEFAULT_TYPE):
@@ -500,6 +508,27 @@ async def resume_calls(update: Update,
         await update.message.reply_text("_Телефонну мережу увімкнено_",
                                         parse_mode = "MarkdownV2")
 
+async def add_alias(update: Update,
+                      context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    if context.args is None or update.message is None:
+        return
+    number = context.args[0]
+    alias = ' '.join(context.args[1:])
+    phonebook.add_phone_alias(number, alias)
+    await update.message.reply_text("_Додано_", parse_mode = "MarkdownV2")
+
+async def remove_alias(update: Update,
+                       context: ContextTypes.DEFAULT_TYPE):
+    if not await check_admin_permission(update):
+        return
+    if context.args is None or update.message is None:
+        return
+    number = context.args[0]
+    phonebook.remove_phone_alias(number)
+    await update.message.reply_text("_Видалено_", parse_mode = "MarkdownV2")
+
 async def error_handler(update: Any | None,
                         context: ContextTypes.DEFAULT_TYPE) -> None:
     e = context.error
@@ -519,20 +548,30 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", get_help))
 
+    # Commands for captains
     application.add_handler(CommandHandler("call", call))
     application.add_handler(CommandHandler("status", status))
 
+    # Commands for Artem
     application.add_handler(CommandHandler("read_users", read_users))
     application.add_handler(CommandHandler("read_phonebook", read_phonebook))
 
-    application.add_handler(CommandHandler("leaderboard", leaderboard))
-    application.add_handler(CommandHandler("progress", progress))
+    # Captain administration
     application.add_handler(CommandHandler("add_captain", add_captain))
     application.add_handler(CommandHandler("remove_captain", remove_captain))
     application.add_handler(CommandHandler("list_users", list_users))
+
+    # Pause control
     application.add_handler(CommandHandler("pause_calls", pause_calls))
     application.add_handler(CommandHandler("resume_calls", resume_calls))
 
+    # Viewing progress
+    application.add_handler(CommandHandler("leaderboard", leaderboard))
+    application.add_handler(CommandHandler("progress", progress))
+    application.add_handler(CommandHandler("add_alias", add_alias))
+    application.add_handler(CommandHandler("remove_alias", remove_alias))
+
+    # Adding number and broadcasting
     application.add_handler(CommandHandler("add_number", add_number))
     application.add_handler(CommandHandler("broadcast", broadcast))
     application.add_handler(CommandHandler("done", done))
