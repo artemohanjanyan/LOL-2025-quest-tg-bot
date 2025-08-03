@@ -398,7 +398,7 @@ async def progress(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     table_str = "\n".join(rows)
 
     await update.message.reply_text(
-        f"Прогрес {username} починаючи від {start_of_day.strftime('%Y/%m/%d')}:\n" +
+        f"Прогрес {escape_markdown(username)} починаючи від {start_of_day.strftime('%Y/%m/%d')}:\n" +
             "```\n" + table_str + "\n```",
         parse_mode = "MarkdownV2"
     )
