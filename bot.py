@@ -311,7 +311,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             for user in users.users.values():
                 if user.role == UserRole.CAPTAIN:
                     await update.message.reply_text(
-                            f"_Надсилаю капітану {user.username}_",
+                            f"_Надсилаю капітану {escape_markdown(user.username)}_",
                             parse_mode = "MarkdownV2"
                     )
                     try:
