@@ -218,6 +218,7 @@ async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     number = context.args[0]
     password = context.args[1] if 1 < len(context.args) else None
+    logging.info(f"received a call from {update.effective_user.id} to number {number} ({password})")
     if (number, password) in phonebook.phonebook.replies:
         await send_reply(update.message,
                          phonebook.phonebook.replies[(number, password)])
