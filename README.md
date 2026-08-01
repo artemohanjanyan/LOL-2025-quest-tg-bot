@@ -18,5 +18,5 @@ pip install python-dotenv
 ## Running
 
 ```
-python test-bot.py
+python bot.py
 ```
