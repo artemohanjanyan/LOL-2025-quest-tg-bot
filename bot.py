@@ -219,6 +219,8 @@ async def call(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     number = context.args[0]
     password = context.args[1] if 1 < len(context.args) else None
     logging.info(f"received a call from {update.effective_user.id} to number {number} ({password})")
+    # Record the call in the database only after delivering the reply. Recording it
+    # first could deduct a point even if sending fails, so failed deliveries go unrecorded.
     if (number, password) in phonebook.phonebook.replies:
         await send_reply(update.message,
                          phonebook.phonebook.replies[(number, password)])
