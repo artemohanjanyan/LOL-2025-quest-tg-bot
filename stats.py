@@ -13,15 +13,15 @@ def log_call(user_id: int,
              call_timestamp: datetime,
              phone: str,
              password: str | None) -> None:
-    cursor = stats_connection.cursor()
-    cursor.execute("""
-            INSERT INTO call_log
-            (user_id, call_timestamp, phone, password)
-            VALUES (?, ?, ?, ?)
-            """,
-            (user_id, call_timestamp, phone, password)
-    )
-    stats_connection.commit()
+    with stats_connection:
+        cursor = stats_connection.cursor()
+        cursor.execute("""
+                INSERT INTO call_log
+                (user_id, call_timestamp, phone, password)
+                VALUES (?, ?, ?, ?)
+                """,
+                (user_id, call_timestamp, phone, password)
+        )
 
 def status(user_id: int) -> int:
     cursor = stats_connection.cursor()

@@ -54,15 +54,15 @@ def add_number(phone: str, password: str | None, reply: Reply) -> None:
     values = [(phone, password, reply_n,
                reply_part.reply_type.value, reply_part.reply_data)
               for reply_n, reply_part in enumerate(reply.parts)]
-    cursor = phonebook_connection.cursor()
-    execute_delete(cursor, phone, password)
-    cursor.executemany("""
-        INSERT INTO phonebook
-        (phone, password, reply_n, reply_type, reply_data)
-        VALUES (?, ?, ?, ?, ?)""",
-        values
-    )
-    phonebook_connection.commit()
+    with phonebook_connection:
+        cursor = phonebook_connection.cursor()
+        execute_delete(cursor, phone, password)
+        cursor.executemany("""
+            INSERT INTO phonebook
+            (phone, password, reply_n, reply_type, reply_data)
+            VALUES (?, ?, ?, ?, ?)""",
+            values
+        )
     read_phonebook()
 
 def execute_delete(cursor: Cursor, phone: str, password: str | None) -> None:
@@ -93,20 +93,20 @@ def read_phone_aliases() -> None:
 read_phone_aliases()
 
 def add_phone_alias(phone: str, alias: str) -> None:
-    cursor = phonebook_connection.cursor()
-    cursor.execute("""
-        INSERT INTO phone_aliases
-        VALUES (?, ?)""",
-        (phone, alias)
-    )
-    phonebook_connection.commit()
+    with phonebook_connection:
+        cursor = phonebook_connection.cursor()
+        cursor.execute("""
+            INSERT INTO phone_aliases
+            VALUES (?, ?)""",
+            (phone, alias)
+        )
     read_phone_aliases()
 
 def remove_phone_alias(phone: str) -> None:
-    cursor = phonebook_connection.cursor()
-    cursor.execute(
-        "DELETE FROM phone_aliases WHERE phone = ?",
-        (phone,)
-    )
-    phonebook_connection.commit()
+    with phonebook_connection:
+        cursor = phonebook_connection.cursor()
+        cursor.execute(
+            "DELETE FROM phone_aliases WHERE phone = ?",
+            (phone,)
+        )
     read_phone_aliases()

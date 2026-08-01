@@ -12,8 +12,8 @@ with open('pause.sql') as pause_file:
         FROM pause
     """).fetchone()
     if existing_pause is None:
-        cursor.execute("INSERT INTO pause VALUES (0)")
-        pause_connection.commit()
+        with pause_connection:
+            cursor.execute("INSERT INTO pause VALUES (0)")
 
 pause: bool = False
 
@@ -26,12 +26,12 @@ def read_pause() -> None:
     """).fetchone()[0] == 1
 
 def modify_pause(new_pause: bool) -> None:
-    cursor = pause_connection.cursor()
-    cursor.execute(
-        "UPDATE pause SET pause = ?",
-        (1 if new_pause else 0,)
-    )
-    pause_connection.commit()
+    with pause_connection:
+        cursor = pause_connection.cursor()
+        cursor.execute(
+            "UPDATE pause SET pause = ?",
+            (1 if new_pause else 0,)
+        )
     read_pause()
 
 def pause_calls() -> None:

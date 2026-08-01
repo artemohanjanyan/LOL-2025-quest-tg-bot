@@ -37,21 +37,21 @@ def read_users() -> None:
     users_by_username = { user.username: user for user in users.values() }
 
 def add_captain(user_id: str, username: str) -> None:
-    cursor = users_connection.cursor()
-    cursor.execute(
-        "INSERT INTO users VALUES (?, ?, ?)",
-        (user_id, username, UserRole.CAPTAIN.value)
-    )
-    users_connection.commit()
+    with users_connection:
+        cursor = users_connection.cursor()
+        cursor.execute(
+            "INSERT INTO users VALUES (?, ?, ?)",
+            (user_id, username, UserRole.CAPTAIN.value)
+        )
     read_users()
 
 def remove_captain(user_id: str) -> None:
-    cursor = users_connection.cursor()
-    cursor.execute(
-        "DELETE FROM users WHERE user_id = ? and role = 'captain'",
-        (user_id,)
-    )
-    users_connection.commit()
+    with users_connection:
+        cursor = users_connection.cursor()
+        cursor.execute(
+            "DELETE FROM users WHERE user_id = ? and role = 'captain'",
+            (user_id,)
+        )
     read_users()
 
 read_users()
