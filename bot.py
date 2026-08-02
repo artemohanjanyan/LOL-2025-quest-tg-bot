@@ -331,6 +331,7 @@ async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                                 "_Капітан не активував бота_",
                                 parse_mode = "MarkdownV2"
                         )
+            long_action_context.finish_broadcast()
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not await check_admin_permission(update):
