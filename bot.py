@@ -24,6 +24,7 @@ from telegram.ext import (
     filters,
 )
 from telegram.helpers import escape_markdown
+from telegram.request import BaseRequest
 
 from dotenv import load_dotenv
 
@@ -542,12 +543,12 @@ async def error_handler(update: Any | None,
         await update.message.reply_text("_Технічна помилка_",
                                         parse_mode = "MarkdownV2")
 
-def main() -> None:
-    token = os.getenv("TOKEN")
-    if token is None:
-        print("TOKEN is not in the environment")
-        return
-    application = Application.builder().token(token).build()
+def create_application(token: str,
+                       request: Optional[BaseRequest] = None) -> Application:
+    builder = Application.builder().token(token)
+    if request is not None:
+        builder.request(request)
+    application = builder.build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", get_help))
@@ -591,6 +592,16 @@ def main() -> None:
     #application.add_handler(MessageHandler(filters.PHOTO, photo_handler))
 
     application.add_error_handler(error_handler)
+
+    return application
+
+
+def main() -> None:
+    token = os.getenv("TOKEN")
+    if token is None:
+        print("TOKEN is not in the environment")
+        return
+    application = create_application(token)
 
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 

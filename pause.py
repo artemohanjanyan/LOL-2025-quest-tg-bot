@@ -1,8 +1,9 @@
+import os
 import sqlite3
 
 from sqlite3 import Cursor
 
-pause_connection = sqlite3.connect('quest.db')
+pause_connection = sqlite3.connect(os.getenv("QUEST_DB_PATH", "quest.db"))
 
 with open('pause.sql') as pause_file:
     pause_connection.executescript(pause_file.read())

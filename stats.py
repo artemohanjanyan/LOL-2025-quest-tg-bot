@@ -1,10 +1,11 @@
+import os
 import sqlite3
 
 from sqlite3 import Cursor
 from datetime import datetime
 from typing import List, Tuple
 
-stats_connection = sqlite3.connect('quest.db')
+stats_connection = sqlite3.connect(os.getenv("QUEST_DB_PATH", "quest.db"))
 
 with open('stats.sql') as stats_file:
     stats_connection.executescript(stats_file.read())
@@ -20,7 +21,7 @@ def log_call(user_id: int,
                 (user_id, call_timestamp, phone, password)
                 VALUES (?, ?, ?, ?)
                 """,
-                (user_id, call_timestamp, phone, password)
+                (user_id, call_timestamp.isoformat(" "), phone, password)
         )
 
 def status(user_id: int) -> int:

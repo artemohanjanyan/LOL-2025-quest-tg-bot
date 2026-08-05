@@ -1,3 +1,4 @@
+import os
 import sqlite3
 
 from sqlite3 import Cursor
@@ -5,7 +6,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 from enum import Enum
 
-users_connection = sqlite3.connect('quest.db')
+users_connection = sqlite3.connect(os.getenv("QUEST_DB_PATH", "quest.db"))
 
 with open('users.sql') as users_file:
     users_connection.executescript(users_file.read())

@@ -1,3 +1,4 @@
+import os
 import sqlite3
 
 from sqlite3 import Cursor
@@ -5,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 from enum import Enum
 
-phonebook_connection = sqlite3.connect('quest.db')
+phonebook_connection = sqlite3.connect(os.getenv("QUEST_DB_PATH", "quest.db"))
 
 with open('phonebook.sql') as phonebook_file:
     phonebook_connection.executescript(phonebook_file.read())
